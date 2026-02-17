@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC Terminal Trader PRO</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    margin: 0;
+    background: black;
+    color: #00ff00;
+    font-family: "Courier New", monospace;
+    text-align: center;
+    transition: background 0.1s;
+}
+
+.flash {
+    background: red !important;
+}
+
+h1 {
+    text-shadow: 0 0 15px #00ff00;
+    margin-top: 20px;
+}
+
+#preco {
+    font-size: 20px;
+    margin: 10px;
+}
+
+#variacao {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+#saldoInfo {
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+input {
+    padding:8px;
+    background:black;
+    color:#00ff00;
+    border:1px solid #00ff00;
+    font-family:Courier New;
+    margin:5px;
+}
+
+canvas {
+    background: #001100;
+    border: 1px solid #00ff00;
+    box-shadow: 0 0 25px #00ff00;
+    margin: 20px;
+}
+
+button {
+    background: black;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 10px 20px;
+    font-family: "Courier New", monospace;
+    cursor: pointer;
+    margin: 5px;
+}
+
+button:hover {
+    background: #003300;
+}
+
+.terminal {
+    margin-top: 20px;
+    font-size: 14px;
+    height: 120px;
+    overflow: auto;
+}
+</style>
+</head>
+
+<body>
+
+<h1>> BTC TRADER PRO v3</h1>
+
+<div id="preco">Carregando...</div>
+<div id="variacao"></div>
+
+<div id="saldoInfo">
+    SALDO: $1000.00 | BTC: 0
+</div>
+
+<input type="number" id="valorCompra" placeholder="Valor para investir $">
+
+<br>
+
+<button onclick="comprar()">COMPRAR</button>
+<button onclick="vender()">VENDER TUDO</button>
+
+<canvas id="grafico" width="400" height="200"></canvas>
+
+<div class="terminal" id="terminal"></div>
+
+<script>
+
+let saldo = 1000;
+let btcCarteira = 0;
+let ultimoPrecoGlobal = null;
+
+let ctx = document.getElementById('grafico').getContext('2d');
+
+let grafico = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'BTC/USDT',
+            data: [],
+            borderColor: '#00ff00',
+            borderWidth: 2,
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            x: { ticks: { color: '#00ff00' } },
+            y: { ticks: { color: '#00ff00' } }
+        },
+        plugins: {
+            legend: { labels: { color: '#00ff00' } }
+        }
+    }
+});
+
+async function buscarPreco() {
+
+    let respostaBTC = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
+    let dadosBTC = await respostaBTC.json();
+    let precoUSD = parseFloat(dadosBTC.price);
+
+    let respostaDolar = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL");
+    let dadosDolar = await respostaDolar.json();
+    let dolarBRL = parseFloat(dadosDolar.price);
+
+    let precoBRL = precoUSD * dolarBRL;
+
+    document.getElementById("preco").innerText =
+        "BTC: $" + precoUSD.toFixed(2) + 
+        " | R$ " + precoBRL.toFixed(2);
+
+    if (ultimoPrecoGlobal !== null) {
+
+        let variacao = ((precoUSD - ultimoPrecoGlobal) / ultimoPrecoGlobal) * 100;
+
+        let seta = variacao >= 0 ? "🔼" : "🔽";
+        let cor = variacao >= 0 ? "#00ff00" : "red";
+
+        document.getElementById("variacao").innerHTML =
+            `<span style="color:${cor}">
+            ${seta} ${variacao.toFixed(2)}%
+            </span>`;
+
+        if (variacao < -0.15) {
+            ativarAlerta(variacao);
+        }
+    }
+
+    let hora = new Date().toLocaleTimeString();
+
+    grafico.data.labels.push(hora);
+    grafico.data.datasets[0].data.push(precoUSD);
+
+    if (grafico.data.labels.length > 20) {
+        grafico.data.labels.shift();
+        grafico.data.datasets[0].data.shift();
+    }
+
+    grafico.update();
+
+    ultimoPrecoGlobal = precoUSD;
+}
+
+function ativarAlerta(variacao) {
+
+    document.body.classList.add("flash");
+    grafico.data.datasets[0].borderColor = "red";
+    grafico.update();
+
+    adicionarTerminal("💀 CRASH DETECTED: " + variacao.toFixed(2) + "%");
+
+    tocarAlerta();
+
+    setTimeout(() => {
+        document.body.classList.remove("flash");
+        grafico.data.datasets[0].borderColor = "#00ff00";
+        grafico.update();
+    }, 800);
+}
+
+function tocarAlerta() {
+    let ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+    let oscillator = ctxAudio.createOscillator();
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(800, ctxAudio.currentTime);
+    oscillator.connect(ctxAudio.destination);
+    oscillator.start();
+    oscillator.stop(ctxAudio.currentTime + 0.2);
+}
+
+function comprar() {
+
+    let valorInvestir = parseFloat(document.getElementById("valorCompra").value);
+    let ultimoPreco = grafico.data.datasets[0].data.slice(-1)[0];
+
+    if (!ultimoPreco || !valorInvestir || valorInvestir <= 0) {
+        adicionarTerminal("Valor inválido!");
+        return;
+    }
+
+    if (valorInvestir > saldo) {
+        adicionarTerminal("Saldo insuficiente!");
+        return;
+    }
+
+    let btcComprado = valorInvestir / ultimoPreco;
+
+    saldo -= valorInvestir;
+    btcCarteira += btcComprado;
+
+    adicionarTerminal("Compra executada!");
+    adicionarTerminal("BTC adquirido: " + btcComprado.toFixed(6));
+
+    atualizarInfo();
+}
+
+function vender() {
+
+    let ultimoPreco = grafico.data.datasets[0].data.slice(-1)[0];
+    if (!ultimoPreco || btcCarteira <= 0) {
+        adicionarTerminal("Nada para vender!");
+        return;
+    }
+
+    let valorRecebido = btcCarteira * ultimoPreco;
+
+    saldo += valorRecebido;
+    btcCarteira = 0;
+
+    adicionarTerminal("Venda total executada!");
+    adicionarTerminal("Recebido: $" + valorRecebido.toFixed(2));
+
+    atualizarInfo();
+}
+
+function atualizarInfo() {
+    document.getElementById("saldoInfo").innerText =
+        "SALDO: $" + saldo.toFixed(2) +
+        " | BTC: " + btcCarteira.toFixed(6);
+}
+
+function adicionarTerminal(texto) {
+    let terminal = document.getElementById("terminal");
+    terminal.innerHTML += "> " + texto + "<br>";
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+buscarPreco();
+setInterval(buscarPreco, 4000);
+
+</script>
+
+</body>
+</html>
