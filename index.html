@@ -1,274 +1,244 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BTC Terminal Trader PRO</title>
+<title>Terminal Crypto</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
-    margin: 0;
-    background: black;
-    color: #00ff00;
-    font-family: "Courier New", monospace;
-    text-align: center;
-    transition: background 0.1s;
+body{
+    margin:0;
+    background:black;
+    color:#00ff00;
+    font-family:"Courier New", monospace;
+    text-align:center;
 }
-
-.flash {
-    background: red !important;
-}
-
-h1 {
-    text-shadow: 0 0 15px #00ff00;
-    margin-top: 20px;
-}
-
-#preco {
-    font-size: 20px;
-    margin: 10px;
-}
-
-#variacao {
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-
-#saldoInfo {
-    margin-top: 10px;
-    font-size: 16px;
-}
-
-input {
-    padding:8px;
+h1,h2{ text-shadow:0 0 10px #00ff00; }
+button{
     background:black;
     color:#00ff00;
     border:1px solid #00ff00;
-    font-family:Courier New;
+    padding:10px;
+    margin:5px;
+    cursor:pointer;
+}
+button:hover{ background:#003300; }
+input{
+    background:black;
+    color:#00ff00;
+    border:1px solid #00ff00;
+    padding:6px;
     margin:5px;
 }
-
-canvas {
-    background: #001100;
-    border: 1px solid #00ff00;
-    box-shadow: 0 0 25px #00ff00;
-    margin: 20px;
+canvas{
+    background:#001100;
+    border:1px solid #00ff00;
+    margin:10px;
 }
-
-button {
-    background: black;
-    color: #00ff00;
-    border: 1px solid #00ff00;
-    padding: 10px 20px;
-    font-family: "Courier New", monospace;
-    cursor: pointer;
-    margin: 5px;
+.section{ display:none; }
+.terminal{
+    height:120px;
+    overflow:auto;
+    font-size:13px;
+    margin:10px;
 }
-
-button:hover {
-    background: #003300;
-}
-
-.terminal {
-    margin-top: 20px;
-    font-size: 14px;
-    height: 120px;
-    overflow: auto;
-}
+p{ max-width:700px; margin:10px auto; }
 </style>
 </head>
 
 <body>
 
-<h1>> BTC TRADER PRO v3</h1>
+<h1>> TERMINAL CRYPTO</h1>
 
-<div id="preco">Carregando...</div>
-<div id="variacao"></div>
+<button onclick="mostrar('btc')">BTC</button>
+<button onclick="mostrar('pop')">POP COIN</button>
+<button onclick="mostrar('sobre')">QUEM SOMOS</button>
 
-<div id="saldoInfo">
-    SALDO: $1000.00 | BTC: 0
+<!-- ================= BTC ================= -->
+<div id="btc" class="section">
+<h2>BTC TRADER</h2>
+<div id="btcPreco">Carregando...</div>
+<div id="btcSaldoInfo"></div>
+
+<input type="number" id="btcValor" placeholder="Valor $">
+<br>
+<button onclick="btcComprar()">COMPRAR</button>
+<button onclick="btcVender()">VENDER</button>
+
+<canvas id="btcGraf" width="350" height="180"></canvas>
+<div class="terminal" id="btcTerm"></div>
 </div>
 
-<input type="number" id="valorCompra" placeholder="Valor para investir $">
+<!-- ================= POP COIN ================= -->
+<div id="pop" class="section">
+<h2>🌽 POP COIN</h2>
+<div id="popPreco"></div>
+<div id="popSaldoInfo"></div>
 
+<input type="number" id="popValor" placeholder="Valor $">
 <br>
+<button onclick="popComprar()">COMPRAR</button>
+<button onclick="popVender()">VENDER</button>
+<button onclick="toggleBot()">BOT: <span id="botStatus">OFF</span></button>
 
-<button onclick="comprar()">COMPRAR</button>
-<button onclick="vender()">VENDER TUDO</button>
+<canvas id="popGraf" width="350" height="180"></canvas>
+<div class="terminal" id="popTerm"></div>
+</div>
 
-<canvas id="grafico" width="400" height="200"></canvas>
+<!-- ================= SOBRE ================= -->
+<div id="sobre" class="section">
+<h2>QUEM SOMOS – POP COIN</h2>
 
-<div class="terminal" id="terminal"></div>
+<p><b>Arlon Giovani</b><br>
+Jovem de 17 anos, com diversas habilidades e muitos planos na mente.
+Sempre busca ajudar as pessoas ao máximo, fazendo tudo com intensidade,
+dedicação e vontade de evoluir. Gosta de músicas em geral, tecnologia
+e computação, áreas onde procura constantemente aprender e criar coisas novas.</p>
+
+<p><b>Kauê Rosa</b><br>
+Jovem de 17 anos, cheio de planos e com uma certa preguiça.
+Seu maior objetivo é ver as pessoas felizes, pois não existe nada melhor
+do que ajudar o próximo. Gosta de chás, doces, flores e tecnologia.</p>
+
+<p><b>POP COIN</b><br>
+A Pop Coin nasce da união de ideias, criatividade e vontade de aprender.
+Não é apenas sobre criptomoeda, mas sobre experimentar, criar
+e evoluir juntos.</p>
+</div>
 
 <script>
+document.addEventListener("DOMContentLoaded",()=>{
 
-let saldo = 1000;
-let btcCarteira = 0;
-let ultimoPrecoGlobal = null;
+function mostrar(id){
+ document.querySelectorAll('.section')
+ .forEach(s=>s.style.display='none');
+ document.getElementById(id).style.display='block';
+}
+window.mostrar = mostrar;
+mostrar('btc');
 
-let ctx = document.getElementById('grafico').getContext('2d');
+/* ===== ESTADO ===== */
+let btcSaldo=1000, btc=0;
+let popSaldo=1000, pop=0;
+let popPreco=1, base=1, bot=false;
 
-let grafico = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'BTC/USDT',
-            data: [],
-            borderColor: '#00ff00',
-            borderWidth: 2,
-            fill: false
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            x: { ticks: { color: '#00ff00' } },
-            y: { ticks: { color: '#00ff00' } }
-        },
-        plugins: {
-            legend: { labels: { color: '#00ff00' } }
-        }
-    }
+/* ===== MEMÓRIA ===== */
+function salvar(){
+ localStorage.setItem("terminalCrypto",
+ JSON.stringify({btcSaldo,btc,popSaldo,pop,popPreco,base,bot}));
+}
+function carregar(){
+ let d=JSON.parse(localStorage.getItem("terminalCrypto"));
+ if(!d) return;
+ btcSaldo=d.btcSaldo??btcSaldo;
+ btc=d.btc??btc;
+ popSaldo=d.popSaldo??popSaldo;
+ pop=d.pop??pop;
+ popPreco=d.popPreco??popPreco;
+ base=d.base??popPreco;
+ bot=d.bot??false;
+ botStatus.innerText=bot?"ON":"OFF";
+}
+
+function atualizarSaldos(){
+ btcSaldoInfo.innerText=
+ `SALDO: $${btcSaldo.toFixed(2)} | BTC: ${btc.toFixed(6)}`;
+ popSaldoInfo.innerText=
+ `SALDO: $${popSaldo.toFixed(2)} | POP: ${pop.toFixed(4)}`;
+}
+
+/* ===== BTC ===== */
+let btcChart=new Chart(btcGraf,{
+ type:'line',
+ data:{labels:[],datasets:[{data:[],borderColor:'#0f0'}]},
+ options:{plugins:{legend:{display:false}}}
 });
 
-async function buscarPreco() {
-
-    let respostaBTC = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
-    let dadosBTC = await respostaBTC.json();
-    let precoUSD = parseFloat(dadosBTC.price);
-
-    let respostaDolar = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL");
-    let dadosDolar = await respostaDolar.json();
-    let dolarBRL = parseFloat(dadosDolar.price);
-
-    let precoBRL = precoUSD * dolarBRL;
-
-    document.getElementById("preco").innerText =
-        "BTC: $" + precoUSD.toFixed(2) + 
-        " | R$ " + precoBRL.toFixed(2);
-
-    if (ultimoPrecoGlobal !== null) {
-
-        let variacao = ((precoUSD - ultimoPrecoGlobal) / ultimoPrecoGlobal) * 100;
-
-        let seta = variacao >= 0 ? "🔼" : "🔽";
-        let cor = variacao >= 0 ? "#00ff00" : "red";
-
-        document.getElementById("variacao").innerHTML =
-            `<span style="color:${cor}">
-            ${seta} ${variacao.toFixed(2)}%
-            </span>`;
-
-        if (variacao < -0.15) {
-            ativarAlerta(variacao);
-        }
-    }
-
-    let hora = new Date().toLocaleTimeString();
-
-    grafico.data.labels.push(hora);
-    grafico.data.datasets[0].data.push(precoUSD);
-
-    if (grafico.data.labels.length > 20) {
-        grafico.data.labels.shift();
-        grafico.data.datasets[0].data.shift();
-    }
-
-    grafico.update();
-
-    ultimoPrecoGlobal = precoUSD;
+async function atualizarBTC(){
+ let r=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
+ let p=parseFloat((await r.json()).price);
+ btcPreco.innerText="BTC: $"+p.toFixed(2);
+ btcChart.data.labels.push(new Date().toLocaleTimeString());
+ btcChart.data.datasets[0].data.push(p);
+ if(btcChart.data.labels.length>20){
+  btcChart.data.labels.shift();
+  btcChart.data.datasets[0].data.shift();
+ }
+ btcChart.update();
 }
+setInterval(atualizarBTC,4000);
+atualizarBTC();
 
-function ativarAlerta(variacao) {
+window.btcComprar=()=>{
+ let v=+btcValor.value;
+ let p=btcChart.data.datasets[0].data.at(-1);
+ if(!p||v<=0||v>btcSaldo) return;
+ btcSaldo-=v; btc+=v/p;
+ salvar(); atualizarSaldos();
+};
+window.btcVender=()=>{
+ let p=btcChart.data.datasets[0].data.at(-1);
+ if(!p||btc<=0) return;
+ btcSaldo+=btc*p; btc=0;
+ salvar(); atualizarSaldos();
+};
 
-    document.body.classList.add("flash");
-    grafico.data.datasets[0].borderColor = "red";
-    grafico.update();
+/* ===== POP COIN ===== */
+let popChart=new Chart(popGraf,{
+ type:'line',
+ data:{labels:[],datasets:[{data:[],borderColor:'#0f0'}]},
+ options:{plugins:{legend:{display:false}}}
+});
 
-    adicionarTerminal("💀 CRASH DETECTED: " + variacao.toFixed(2) + "%");
+function atualizarPOP(){
+ popPreco*=1+(Math.random()-0.5)*0.05;
+ let perc=((popPreco-base)/base)*100;
 
-    tocarAlerta();
+ if(bot){
+  if(perc<=-5&&popSaldo>=250){
+   popSaldo-=250; pop+=250/popPreco; base=popPreco;
+  }
+  if(perc>=5&&pop>0){
+   popSaldo+=pop*popPreco; pop=0; base=popPreco;
+  }
+ }
 
-    setTimeout(() => {
-        document.body.classList.remove("flash");
-        grafico.data.datasets[0].borderColor = "#00ff00";
-        grafico.update();
-    }, 800);
+ popPrecoDiv.innerText="Preço: $"+popPreco.toFixed(4);
+ popChart.data.labels.push(new Date().toLocaleTimeString());
+ popChart.data.datasets[0].data.push(popPreco);
+ if(popChart.data.labels.length>20){
+  popChart.data.labels.shift();
+  popChart.data.datasets[0].data.shift();
+ }
+ popChart.update();
+ salvar(); atualizarSaldos();
 }
+setInterval(atualizarPOP,3000);
 
-function tocarAlerta() {
-    let ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
-    let oscillator = ctxAudio.createOscillator();
-    oscillator.type = "square";
-    oscillator.frequency.setValueAtTime(800, ctxAudio.currentTime);
-    oscillator.connect(ctxAudio.destination);
-    oscillator.start();
-    oscillator.stop(ctxAudio.currentTime + 0.2);
-}
+window.popComprar=()=>{
+ let v=+popValor.value;
+ if(v<=0||v>popSaldo) return;
+ popSaldo-=v; pop+=v/popPreco;
+ salvar(); atualizarSaldos();
+};
+window.popVender=()=>{
+ if(pop<=0) return;
+ popSaldo+=pop*popPreco; pop=0;
+ salvar(); atualizarSaldos();
+};
+window.toggleBot=()=>{
+ bot=!bot;
+ botStatus.innerText=bot?"ON":"OFF";
+ salvar();
+};
 
-function comprar() {
+const popPrecoDiv=document.getElementById("popPreco");
+carregar();
+atualizarSaldos();
 
-    let valorInvestir = parseFloat(document.getElementById("valorCompra").value);
-    let ultimoPreco = grafico.data.datasets[0].data.slice(-1)[0];
-
-    if (!ultimoPreco || !valorInvestir || valorInvestir <= 0) {
-        adicionarTerminal("Valor inválido!");
-        return;
-    }
-
-    if (valorInvestir > saldo) {
-        adicionarTerminal("Saldo insuficiente!");
-        return;
-    }
-
-    let btcComprado = valorInvestir / ultimoPreco;
-
-    saldo -= valorInvestir;
-    btcCarteira += btcComprado;
-
-    adicionarTerminal("Compra executada!");
-    adicionarTerminal("BTC adquirido: " + btcComprado.toFixed(6));
-
-    atualizarInfo();
-}
-
-function vender() {
-
-    let ultimoPreco = grafico.data.datasets[0].data.slice(-1)[0];
-    if (!ultimoPreco || btcCarteira <= 0) {
-        adicionarTerminal("Nada para vender!");
-        return;
-    }
-
-    let valorRecebido = btcCarteira * ultimoPreco;
-
-    saldo += valorRecebido;
-    btcCarteira = 0;
-
-    adicionarTerminal("Venda total executada!");
-    adicionarTerminal("Recebido: $" + valorRecebido.toFixed(2));
-
-    atualizarInfo();
-}
-
-function atualizarInfo() {
-    document.getElementById("saldoInfo").innerText =
-        "SALDO: $" + saldo.toFixed(2) +
-        " | BTC: " + btcCarteira.toFixed(6);
-}
-
-function adicionarTerminal(texto) {
-    let terminal = document.getElementById("terminal");
-    terminal.innerHTML += "> " + texto + "<br>";
-    terminal.scrollTop = terminal.scrollHeight;
-}
-
-buscarPreco();
-setInterval(buscarPreco, 4000);
-
+});
 </script>
 
 </body>
