@@ -38,13 +38,12 @@ canvas{
     margin:10px;
 }
 .section{ display:none; }
-.terminal{
-    height:120px;
-    overflow:auto;
-    font-size:13px;
-    margin:10px;
-}
 p{ max-width:700px; margin:10px auto; }
+.carteira-box{
+    border:1px solid #00ff00;
+    margin:15px;
+    padding:10px;
+}
 </style>
 </head>
 
@@ -54,6 +53,8 @@ p{ max-width:700px; margin:10px auto; }
 
 <button onclick="mostrar('btc')">BTC</button>
 <button onclick="mostrar('pop')">POP COIN</button>
+<button onclick="mostrar('carteira')">CARTEIRA</button>
+<button onclick="mostrar('perfil')">PERFIL</button>
 <button onclick="mostrar('sobre')">QUEM SOMOS</button>
 
 <!-- ================= BTC ================= -->
@@ -68,10 +69,9 @@ p{ max-width:700px; margin:10px auto; }
 <button onclick="btcVender()">VENDER</button>
 
 <canvas id="btcGraf" width="350" height="180"></canvas>
-<div class="terminal" id="btcTerm"></div>
 </div>
 
-<!-- ================= POP COIN ================= -->
+<!-- ================= POP ================= -->
 <div id="pop" class="section">
 <h2>🌽 POP COIN</h2>
 <div id="popPreco"></div>
@@ -84,7 +84,40 @@ p{ max-width:700px; margin:10px auto; }
 <button onclick="toggleBot()">BOT: <span id="botStatus">OFF</span></button>
 
 <canvas id="popGraf" width="350" height="180"></canvas>
-<div class="terminal" id="popTerm"></div>
+</div>
+
+<!-- ================= CARTEIRA ================= -->
+<div id="carteira" class="section">
+<h2> CARTEIRA</h2>
+
+<div id="saudacao"></div>
+
+<div class="carteira-box">
+<h3>BTC</h3>
+<div id="carteiraBTC"></div>
+<button onclick="venderTudoBTC()">Vender BTC</button>
+</div>
+
+<div class="carteira-box">
+<h3>🌽 POP</h3>
+<div id="carteiraPOP"></div>
+<button onclick="venderTudoPOP()">Vender POP</button>
+</div>
+
+<h3 id="patrimonioTotal"></h3>
+</div>
+
+<!-- ================= PERFIL ================= -->
+<div id="perfil" class="section">
+<h2> PERFIL</h2>
+
+<input type="text" id="nomeInput" placeholder="Seu nome">
+<br>
+<input type="text" id="apelidoInput" placeholder="Seu apelido (opcional)">
+<br>
+<button onclick="salvarPerfil()">Salvar Perfil</button>
+
+<div id="perfilSalvo"></div>
 </div>
 
 <!-- ================= SOBRE ================= -->
@@ -94,35 +127,32 @@ p{ max-width:700px; margin:10px auto; }
 <p><b>Arlon Giovani</b><br>
 Jovem de 17 anos, com diversas habilidades e muitos planos na mente.
 Sempre busca ajudar as pessoas ao máximo, fazendo tudo com intensidade,
-dedicação e vontade de evoluir. Gosta de músicas em geral, tecnologia
-e computação, áreas onde procura constantemente aprender e criar coisas novas.</p>
+dedicação e vontade de evoluir.</p>
 
 <p><b>Kauê Rosa</b><br>
 Jovem de 17 anos, cheio de planos e com uma certa preguiça.
-Seu maior objetivo é ver as pessoas felizes, pois não existe nada melhor
-do que ajudar o próximo. Gosta de chás, doces, flores e tecnologia.</p>
+Seu maior objetivo é ver as pessoas felizes.</p>
 
 <p><b>POP COIN</b><br>
-A Pop Coin nasce da união de ideias, criatividade e vontade de aprender.
-Não é apenas sobre criptomoeda, mas sobre experimentar, criar
-e evoluir juntos.</p>
+A Pop Coin nasce da união de ideias, criatividade e vontade de aprender.</p>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded",()=>{
 
 function mostrar(id){
- document.querySelectorAll('.section')
- .forEach(s=>s.style.display='none');
+ document.querySelectorAll('.section').forEach(s=>s.style.display='none');
  document.getElementById(id).style.display='block';
+ if(id==="carteira") atualizarCarteira();
 }
-window.mostrar = mostrar;
+window.mostrar=mostrar;
 mostrar('btc');
 
 /* ===== ESTADO ===== */
 let btcSaldo=1000, btc=0;
 let popSaldo=1000, pop=0;
 let popPreco=1, base=1, bot=false;
+let perfil={};
 
 /* ===== MEMÓRIA ===== */
 function salvar(){
@@ -131,23 +161,65 @@ function salvar(){
 }
 function carregar(){
  let d=JSON.parse(localStorage.getItem("terminalCrypto"));
- if(!d) return;
- btcSaldo=d.btcSaldo??btcSaldo;
- btc=d.btc??btc;
- popSaldo=d.popSaldo??popSaldo;
- pop=d.pop??pop;
- popPreco=d.popPreco??popPreco;
- base=d.base??popPreco;
- bot=d.bot??false;
- botStatus.innerText=bot?"ON":"OFF";
+ if(d){
+  btcSaldo=d.btcSaldo??btcSaldo;
+  btc=d.btc??btc;
+  popSaldo=d.popSaldo??popSaldo;
+  pop=d.pop??pop;
+  popPreco=d.popPreco??popPreco;
+  base=d.base??popPreco;
+  bot=d.bot??false;
+ }
+ let p=JSON.parse(localStorage.getItem("perfil"));
+ if(p) perfil=p;
 }
+carregar();
 
 function atualizarSaldos(){
- btcSaldoInfo.innerText=
- `SALDO: $${btcSaldo.toFixed(2)} | BTC: ${btc.toFixed(6)}`;
- popSaldoInfo.innerText=
- `SALDO: $${popSaldo.toFixed(2)} | POP: ${pop.toFixed(4)}`;
+ btcSaldoInfo.innerText=`SALDO: $${btcSaldo.toFixed(2)} | BTC: ${btc.toFixed(6)}`;
+ popSaldoInfo.innerText=`SALDO: $${popSaldo.toFixed(2)} | POP: ${pop.toFixed(4)}`;
 }
+atualizarSaldos();
+
+/* ===== PERFIL ===== */
+window.salvarPerfil=()=>{
+ perfil={
+  nome:nomeInput.value||"Investidor",
+  apelido:apelidoInput.value||""
+ };
+ localStorage.setItem("perfil",JSON.stringify(perfil));
+ perfilSalvo.innerText="Perfil salvo com sucesso!";
+};
+
+function atualizarCarteira(){
+ let nome = perfil.nome || "Investidor";
+ let apelido = perfil.apelido ? ` (${perfil.apelido})` : "";
+ saudacao.innerText=`Olá, ${nome}${apelido} `;
+
+ let btcValor = btc * (btcChart.data.datasets[0].data.at(-1) || 0);
+ let popValor = pop * popPreco;
+
+ carteiraBTC.innerText=`Quantidade: ${btc.toFixed(6)} BTC | Valor Atual: $${btcValor.toFixed(2)}`;
+ carteiraPOP.innerText=`Quantidade: ${pop.toFixed(4)} POP | Valor Atual: $${popValor.toFixed(2)}`;
+
+ let total = btcSaldo + popSaldo + btcValor + popValor;
+ patrimonioTotal.innerText=` Patrimônio Total: $${total.toFixed(2)}`;
+}
+
+/* ===== VENDA RÁPIDA ===== */
+window.venderTudoBTC=()=>{
+ let preco = btcChart.data.datasets[0].data.at(-1);
+ if(!preco||btc<=0) return;
+ btcSaldo+=btc*preco;
+ btc=0;
+ salvar(); atualizarSaldos(); atualizarCarteira();
+};
+window.venderTudoPOP=()=>{
+ if(pop<=0) return;
+ popSaldo+=pop*popPreco;
+ pop=0;
+ salvar(); atualizarSaldos(); atualizarCarteira();
+};
 
 /* ===== BTC ===== */
 let btcChart=new Chart(btcGraf,{
@@ -167,6 +239,7 @@ async function atualizarBTC(){
   btcChart.data.datasets[0].data.shift();
  }
  btcChart.update();
+ atualizarCarteira();
 }
 setInterval(atualizarBTC,4000);
 atualizarBTC();
@@ -178,14 +251,8 @@ window.btcComprar=()=>{
  btcSaldo-=v; btc+=v/p;
  salvar(); atualizarSaldos();
 };
-window.btcVender=()=>{
- let p=btcChart.data.datasets[0].data.at(-1);
- if(!p||btc<=0) return;
- btcSaldo+=btc*p; btc=0;
- salvar(); atualizarSaldos();
-};
 
-/* ===== POP COIN ===== */
+/* ===== POP ===== */
 let popChart=new Chart(popGraf,{
  type:'line',
  data:{labels:[],datasets:[{data:[],borderColor:'#0f0'}]},
@@ -194,17 +261,6 @@ let popChart=new Chart(popGraf,{
 
 function atualizarPOP(){
  popPreco*=1+(Math.random()-0.5)*0.05;
- let perc=((popPreco-base)/base)*100;
-
- if(bot){
-  if(perc<=-5&&popSaldo>=250){
-   popSaldo-=250; pop+=250/popPreco; base=popPreco;
-  }
-  if(perc>=5&&pop>0){
-   popSaldo+=pop*popPreco; pop=0; base=popPreco;
-  }
- }
-
  popPrecoDiv.innerText="Preço: $"+popPreco.toFixed(4);
  popChart.data.labels.push(new Date().toLocaleTimeString());
  popChart.data.datasets[0].data.push(popPreco);
@@ -213,7 +269,7 @@ function atualizarPOP(){
   popChart.data.datasets[0].data.shift();
  }
  popChart.update();
- salvar(); atualizarSaldos();
+ atualizarCarteira();
 }
 setInterval(atualizarPOP,3000);
 
@@ -223,20 +279,8 @@ window.popComprar=()=>{
  popSaldo-=v; pop+=v/popPreco;
  salvar(); atualizarSaldos();
 };
-window.popVender=()=>{
- if(pop<=0) return;
- popSaldo+=pop*popPreco; pop=0;
- salvar(); atualizarSaldos();
-};
-window.toggleBot=()=>{
- bot=!bot;
- botStatus.innerText=bot?"ON":"OFF";
- salvar();
-};
 
 const popPrecoDiv=document.getElementById("popPreco");
-carregar();
-atualizarSaldos();
 
 });
 </script>
